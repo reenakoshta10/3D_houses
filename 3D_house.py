@@ -49,7 +49,7 @@ def createSmallRaster(raster_ds, x, y, filename):
 
             # use gdal warp
             if((x>=xmin and x<=xmax) and (y>=ymin and y<=ymax)):
-                gdal.Warp("geo-files/temp_files/"+filename+".tif", dem, 
+                gdal.Warp("geo-files/temp/"+filename+".tif", dem, 
                           outputBounds = (xmin, ymin, xmax, ymax), dstNodata = -9999)
     
 def createSmallRaster(raster_ds, shape, filename):
@@ -93,7 +93,7 @@ def createSmallRaster(raster_ds, shape, filename):
 #             if((x>=xmin and x<=xmax) and (y>=ymin and y<=ymax)):
 #                 gdal.Warp("geo-files/temp_files/"+filename+".tif", dem, 
 #                           outputBounds = (xmin, ymin, xmax, ymax), dstNodata = -9999)
-    gdal.Warp("geo-files/temp_files/"+filename+".tif", dem, 
+    gdal.Warp("geo-files/temp/"+filename+".tif", dem, 
                           outputBounds = (xmin-5, ymin-5, xmax+5, ymax+5), dstNodata = -9999)
                 
 def get_coordinates(address: str):
@@ -118,6 +118,13 @@ def get_coordinates(address: str):
 def create_shapefile(polygon):
     poly = Polygon(polygon)
 
+    directory = "shapefiles"
+    parent_dir = os.path.abspath("geo-files")
+    path = os.path.join(parent_dir, directory) 
+    try:
+        os.makedirs(path, exist_ok = True)
+    except OSError as error:
+        pass
     # Now convert it to a shapefile with OGR    
     driver = ogr.GetDriverByName('Esri Shapefile')
     ds = driver.CreateDataSource('geo-files/shapefiles/polygon.shp')
@@ -166,8 +173,8 @@ def find_and_get_raster(x_coordinate, y_coordinate):
     ds = pd.read_csv("raster_file_list.csv")
     file_info = ds[((x_coordinate>=ds['xmin']) & (x_coordinate<=ds['xmax'])) & ((y_coordinate>=ds['ymin']) & (y_coordinate<=ds['ymax']))]
     print(file_info)
-    dsm_file_path = get_raster("https://downloadagiv.blob.core.windows.net/dhm-vlaanderen-ii-dsm-raster-1m/DHMVIIDSMRAS1m_k",file_info.iloc[-1].file_number,'DSM')
-    dtm_file_path = get_raster("https://downloadagiv.blob.core.windows.net/dhm-vlaanderen-ii-dtm-raster-1m/DHMVIIDTMRAS1m_k",file_info.iloc[-1].file_number,'DTM')
+    dsm_file_path = get_raster("https://downloadagiv.blob.core.windows.net/dhm-vlaanderen-ii-dsm-raster-1m/DHMVIIDSMRAS1m_k",int(file_info.iloc[-1].file_number),'DSM')
+    dtm_file_path = get_raster("https://downloadagiv.blob.core.windows.net/dhm-vlaanderen-ii-dtm-raster-1m/DHMVIIDTMRAS1m_k",int(file_info.iloc[-1].file_number),'DTM')
     
     print(dsm_file_path)
     print(dtm_file_path)
@@ -176,14 +183,22 @@ def find_and_get_raster(x_coordinate, y_coordinate):
 def get_raster(link,file_number,file_type):
     if file_number < 10:
         file_number = '0'+str(file_number)
-        
+    print(file_number)    
     file_link= link+str(file_number)+".zip"
+    
+    directory = "GeoTIFF"
+    parent_dir = os.path.abspath("geo-files/temp/"+file_type)
+    path = os.path.join(parent_dir, directory) 
+    try:
+        os.makedirs(path, exist_ok = True)
+    except OSError as error:
+        pass
     file_path = os.path.abspath("geo-files/temp/"+file_type)
     for filename in os.listdir(file_path+"/GeoTIFF"):
         print(os.path.splitext(filename)[0][-2:])
         if os.path.splitext(filename)[0][-2:]==str(file_number):
             return file_path+"/GeoTIFF/"+filename
-        
+    print(file_link)
     http_response = urlopen(file_link)
     zipfile = ZipFile(BytesIO(http_response.read()))
     zipfile.extractall(path=file_path)
@@ -236,8 +251,8 @@ dtm_big = gdal.Open("geo-files/shapefiles/dtm.tif")
 createSmallRaster(dsm_big, polygon, "DSM")
 createSmallRaster(dtm_big, polygon, "DTM")
 
-dsm= gdal.Open("geo-files/temp_files/DSM.tif")
-dtm= gdal.Open("geo-files/temp_files/DTM.tif")
+dsm= gdal.Open("geo-files/temp/DSM.tif")
+dtm= gdal.Open("geo-files/temp/DTM.tif")
 
 dsm_array = dsm.ReadAsArray()
 dtm_array = dtm.ReadAsArray()
